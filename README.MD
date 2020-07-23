@@ -14,8 +14,8 @@ Please run dumpinfo  and report whenever (just open an issue on github):
 You are allowed to comtribute with new info about the file format or oodle compression
 Make sure that you do not have access to any RAD SDK and you do not push any copyrighted code by RAD.
 
-Reading of most of this files are done by comparing already existing gr2 files in granny2 viewer (public release),
-other common attemps are messing up with the CRC32 checksum.
+Reading of most of this files are done by comparing already existing gr2 files each other, and comparing their result with granny2 viewer (public release),
+another way to decode the data is modifying the gr2 file and update the CRC32 checksum.
 
 The checksum starts after the header size + the magic bytes to the end of the file, the checksum is stored inside the
 Granny2 file as Big Endian.
