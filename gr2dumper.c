@@ -46,12 +46,24 @@ struct t_FileInfo
 
 struct t_Sector
 {
-	uint32_t CompressionType;
+  int CompressionType;
+  int DataOffset;
+  int DecompressedDataLength;
+  int CompressDataLength;
+  int b; // 4
+  int c; // 2740
+  int d; // 2740
+  int f; // 440
+  int g; // 198
+  int h; // 2816
+  int e; // 0
 };
 
 long ParseHeader(uint8_t* data, bool* isBE)
 {
 	struct t_Header* header = (struct t_Header*)data;
+
+	printf("--- BEGIN OF HEADER ---\n");
 
 	if (header->Magic[0] == 3400558520 && header->Magic[1] == 263286264 && header->Magic[2] == 2123133572 && header->Magic[3] == 503322974)
 	{
@@ -88,10 +100,12 @@ long ParseHeader(uint8_t* data, bool* isBE)
 	return 32;
 }
 
-long ParseFileInfo(uint8_t* fileData, long p, long fileSizeReal)
+long ParseFileInfo(uint8_t* fileData, long p, long fileSizeReal, uint32_t* pFileFormat, uint32_t* pSectorCount)
 {
 	struct t_FileInfo* fi = (struct t_FileInfo*)(fileData + p);
 	uint32_t ExpectedHeaderSize = 0x38;
+
+	printf("--- BEGIN OF FILE INFO ---\n");
 
 	printf("File format: %d\n", fi->FileFormat);
 
@@ -104,6 +118,9 @@ long ParseFileInfo(uint8_t* fileData, long p, long fileSizeReal)
 	{
 		printf("!! Only File Format 6 is supported, data might be invalid !!\n");
 	}
+
+	*pFileFormat = fi->FileFormat;
+	*pSectorCount = fi->SectorCount;
 
 	printf("Total file size: 0x%02x\n", fi->TotalFileSize);
 
@@ -138,23 +155,38 @@ long ParseFileInfo(uint8_t* fileData, long p, long fileSizeReal)
 		printf("0x%02x ", fi->unk[p]);
 	}
 
-	printf("\n--- END OF GENERIC INFO ---\n");
+	printf("\n--- END OF FILE INFO ---\n");
 
 	return fi->FileInfoSize;
 }
 
-long Sector0Info(uint8_t* fileData, long p)
+long ParseSector(uint8_t* fileData, long p, uint32_t currentSector, uint32_t fileFormat)
 {
-	struct t_Sector* sector = (struct t_Sector*)(fileData+p);
+	struct t_Sector* sector = (struct t_Sector*)(fileData + p);
 
-	printf("Sector 0 compression type: %x\n", sector->CompressionType);
+	printf("--- BEGIN OF SECTOR %u ---\n", currentSector);
+
+	printf("Compression type: %x\n", sector->CompressionType);
 	
 	if (sector->CompressionType != 0x00)
 	{
-		printf("!! Please not that compressed sector 0 is not supported !!");
+		printf("!! Please not that compressed sector 0 is not supported !!\n");
 	}
 
-	return sizeof(struct t_Sector);
+	printf("Data offset: %u\n", sector->DataOffset);
+	printf("Decompressed Data length: %u\n", sector->DecompressedDataLength);
+	printf("Compressed Data length: %u\n", sector->CompressDataLength);
+	printf("b %d\n", sector->b);
+	printf("c %u\n", sector->c);
+	printf("d %u\n", sector->d);
+	printf("f %d\n", sector->f);
+	printf("g %d\n", sector->g);
+	printf("h %d\n", sector->h);
+	printf("e %d\n", sector->e);
+
+	printf("--- END OF SECTOR %u ---\n", currentSector);
+
+	return 0x2C;
 }
 
 int main(int argc, char* argv[])
@@ -162,6 +194,7 @@ int main(int argc, char* argv[])
 	FILE* gr2File = NULL;
 	long fileSize, p = 0;
 	uint8_t* fileData = NULL;
+	uint32_t fileFormat, sectorCount;
 	bool isBE;
 
 	printf("Granny2 File information dumper\n");
@@ -212,8 +245,13 @@ int main(int argc, char* argv[])
 	fclose(gr2File);
 
 	p = ParseHeader(fileData, &isBE);
-	p = ParseFileInfo(fileData, p, fileSize);
-	p = Sector0Info(fileData, p);
+	p += ParseFileInfo(fileData, p, fileSize, &fileFormat, &sectorCount);
+
+	sectorCount = 1; // §TODO!
+	for (uint32_t i = 0; i < sectorCount; i++)
+	{
+		p += ParseSector(fileData, p, i, fileFormat);
+	}
 	
 	free(fileData);
 

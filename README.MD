@@ -27,14 +27,20 @@ The next 4 bytes is the Sector count.
 The next 8 bytes are a reference for something
 Same the next 8 bytes (All 00 00 00 00 ?)
 Next 4 bytes is the Tag, which is another number of tell the granny2 version, for some reason, different DLLs have a different Tag number hardcoded. It might be used for distinguish major versions.
-All the tags starts from 0x800000.
+All the tags starts from 0x800000. If the tag is 0x800000F then the file is invalid!
 Next 16 bytes: ?
+(In file format 7, there are 16 extra unknown bytes)
 
 ## Sector information
 First 4 bytes is the Sector compression type
     0 : No compression
     1: Oodlee 0
-    2: Oodlee 1
+    2: Oodlee 1 (FF7?)
+Next 4 bytes: Offset of the sector data
+Next 4 bytes: Decompressed data length
+Next 4 bytes: Compressed data length (Might be 0x00 when compression is 0x00)
+18 unknown bytes.
+Perhaps sector data?
 
 ## Contributing
 You are allowed to comtribute with new info about the file format or oodle compression
