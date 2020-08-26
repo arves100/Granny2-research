@@ -44,19 +44,34 @@ struct t_FileInfo
   uint8_t unk[32];
 };
 
+struct t_FixUpData
+{
+	uint32_t Offset1;
+	uint32_t SectorNumber;
+	uint32_t Offset2;
+};
+
+struct t_MarshallData
+{
+	uint32_t Unknown;
+	uint32_t Offset1;
+	uint32_t SectorNumber;
+	uint32_t Offset2;
+};
+
 struct t_Sector
 {
-  int CompressionType;
-  int DataOffset;
-  int DecompressedDataLength;
-  int CompressDataLength;
+  uint32_t CompressionType;
+  uint32_t DataOffset;
+  uint32_t DecompressedDataLength;
+  uint32_t CompressDataLength;
   int b; // 4
   int c; // 2740
   int d; // 2740
-  int f; // 440
-  int g; // 198
-  int h; // 2816
-  int e; // 0
+  uint32_t FixUpDataOffset;
+  uint32_t FixUpDataSize;
+  uint32_t MarshallDataOffset;
+  uint32_t MarshallDataSize;
 };
 
 long ParseHeader(uint8_t* data, bool* isBE)
@@ -141,11 +156,11 @@ long ParseFileInfo(uint8_t* fileData, long p, long fileSizeReal, uint32_t* pFile
 
 	printf("Reference 1:\n");
 	printf("\tSector: %u\n", fi->Ref1.SectorNumber);
-	printf("\tPosition: %u\n", fi->Ref1.Position);
+	printf("\tPosition: %x\n", fi->Ref1.Position);
 
 	printf("Reference 2:\n");
 	printf("\tSector: %u\n", fi->Ref2.SectorNumber);
-	printf("\tPosition: %u\n", fi->Ref2.Position);
+	printf("\tPosition: %x\n", fi->Ref2.Position);
 	
 	printf("Tag: 0x%02x\n", fi->Tag);
 
@@ -159,6 +174,34 @@ long ParseFileInfo(uint8_t* fileData, long p, long fileSizeReal, uint32_t* pFile
 
 	return fi->FileInfoSize;
 }
+
+
+void ParseFixupData(uint8_t* fileData, uint32_t offset, uint32_t size, uint32_t sectorNumber)
+{
+	printf("--- BEGIN OF FIXUP DATA OF SECTOR %u ---\n", sectorNumber);
+	for (uint32_t i = 0; i < size; i++)
+	{
+		struct t_FixUpData* data = (struct t_FixUpData*)(fileData + offset + (i * 12));
+
+		printf("FixUp %04u: Offset 1: %x Offset 2: %x Sector: %u\n",
+			i, data->Offset1, data->Offset2, data->SectorNumber);
+	}
+	printf("--- END OF FIXUP DATA OF SECTOR %u ---\n", sectorNumber);
+}
+
+void ParseMarshallData(uint8_t* fileData, uint32_t offset, uint32_t size, uint32_t sectorNumber)
+{
+	printf("--- BEGIN OF MARSHALL DATA OF SECTOR %u ---\n", sectorNumber);
+	for (uint32_t i = 0; i < size; i++)
+	{
+		struct t_MarshallData* data = (struct t_MarshallData*)(fileData + offset + (i * 16));
+
+		printf("Marshall %04u: Offset 1: %x Offset 2: %x Sector: %u Unknown %u\n",
+			i, data->Offset1, data->Offset2, data->SectorNumber, data->Unknown);
+	}
+	printf("--- END OF MARSHALL DATA OF SECTOR %u ---\n", sectorNumber);
+}
+
 
 long ParseSector(uint8_t* fileData, long p, uint32_t currentSector, uint32_t fileFormat)
 {
@@ -179,12 +222,22 @@ long ParseSector(uint8_t* fileData, long p, uint32_t currentSector, uint32_t fil
 	printf("b %d\n", sector->b);
 	printf("c %u\n", sector->c);
 	printf("d %u\n", sector->d);
-	printf("f %d\n", sector->f);
-	printf("g %d\n", sector->g);
-	printf("h %d\n", sector->h);
-	printf("e %d\n", sector->e);
+	printf("FixUp Data Offset: %u\n", sector->FixUpDataOffset);
+	printf("FixUp Data Size: %u\n", sector->FixUpDataSize);
+	printf("Marshall Data Offset: %u\n", sector->MarshallDataOffset);
+	printf("Marshall Data Size: %u\n", sector->MarshallDataSize);
 
 	printf("--- END OF SECTOR %u ---\n", currentSector);
+
+	if (sector->FixUpDataSize > 0)
+	{
+		ParseFixupData(fileData, sector->FixUpDataOffset, sector->FixUpDataSize, currentSector);
+	}
+
+	if (sector->MarshallDataSize > 0)
+	{
+		ParseMarshallData(fileData, sector->MarshallDataOffset, sector->MarshallDataSize, currentSector);
+	}
 
 	return 0x2C;
 }
@@ -247,7 +300,6 @@ int main(int argc, char* argv[])
 	p = ParseHeader(fileData, &isBE);
 	p += ParseFileInfo(fileData, p, fileSize, &fileFormat, &sectorCount);
 
-	sectorCount = 1; // §TODO!
 	for (uint32_t i = 0; i < sectorCount; i++)
 	{
 		p += ParseSector(fileData, p, i, fileFormat);
