@@ -33,7 +33,10 @@ struct t_VersionInfo
 };
 
 struct t_VersionInfo s_GrannyVersionInfos[] = {
-	{ 440, 0x80000015, "Granny 2.6.0.10" }
+	{ 440, 0x80000015, "Granny 2.6.0.10" },
+	{ 440, 0x80000010, "Granny 2.4.0.6" },
+	{ 456, 0x80000000, "Granny 2.11.8.0" },
+	{ 456, 0x80000039, "Granny 2.11.8.0" }
 };
 
 long ParseHeader(uint8_t* data, bool* isBE)
