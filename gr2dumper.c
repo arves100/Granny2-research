@@ -20,23 +20,33 @@ void fopen_s(FILE** pOut, const char* szFile, const char* szMode)
 struct t_Header
 {
   uint32_t Magic[4];
-  uint32_t Version;
+  uint32_t SizeWithSectors;
   uint32_t mustBe0;
   uint8_t unk[8];
 };
 
-struct t_VersionInfo
+struct t_Reference
 {
-	uint32_t HeaderVersion;
-	uint32_t Tag;
-	char* String;
+	uint32_t SectorNumber;
+	uint32_t Position;
 };
 
-struct t_VersionInfo s_GrannyVersionInfos[] = {
-	{ 440, 0x80000015, "Granny 2.6.0.10" },
-	{ 440, 0x80000010, "Granny 2.4.0.6" },
-	{ 456, 0x80000000, "Granny 2.11.8.0" },
-	{ 456, 0x80000039, "Granny 2.11.8.0" }
+struct t_FileInfo
+{
+  int32_t FileFormat;
+  uint32_t TotalFileSize;
+  uint32_t CRC32;
+  uint32_t FileInfoSize;
+  uint32_t SectorCount;
+  struct t_Reference Ref1;
+  struct t_Reference Ref2;
+  uint32_t Tag;
+  uint8_t unk[32];
+};
+
+struct t_Sector
+{
+	uint32_t CompressionType;
 };
 
 long ParseHeader(uint8_t* data, bool* isBE)
@@ -60,7 +70,7 @@ long ParseHeader(uint8_t* data, bool* isBE)
 		*isBE = false;
 	}
 
-	printf("Header version: %u\n", header->Version);
+	printf("Header size with sectors?: %u\n", header->SizeWithSectors);
 
 	if (header->mustBe0 != 0)
 	{
@@ -78,81 +88,73 @@ long ParseHeader(uint8_t* data, bool* isBE)
 	return 32;
 }
 
-long ParseGenericInfo(uint8_t* fileData, long p, long fileSizeReal)
+long ParseFileInfo(uint8_t* fileData, long p, long fileSizeReal)
 {
-	uint32_t fileSizeFromGr2, crc, headerSize;
+	struct t_FileInfo* fi = (struct t_FileInfo*)(fileData + p);
+	uint32_t ExpectedHeaderSize = 0x38;
 
-	printf("File format: %d\n", *(int32_t*)(fileData + p)); // it's signed, verified on gr2 viewer
-	p += 4;
+	printf("File format: %d\n", fi->FileFormat);
 
-	fileSizeFromGr2 = *(uint32_t*)(fileData + p);
-	printf("Total file size: 0x%02x\n", fileSizeFromGr2);
+	if (fi->FileFormat == 7)
+	{
+		ExpectedHeaderSize = 0x48;
+		printf("!! File Format 7 support is not complete, data might be invalid !!\n");
+	}
+	else if (fi->FileFormat != 6)
+	{
+		printf("!! Only File Format 6 is supported, data might be invalid !!\n");
+	}
 
-	if (fileSizeFromGr2 != fileSizeReal)
+	printf("Total file size: 0x%02x\n", fi->TotalFileSize);
+
+	if (fi->TotalFileSize != fileSizeReal)
 	{
 		printf("!! GR2 file size differs the real file size !!\n");
 	}
 
-	p += 4;
+	printf("CRC32 Big endian: 0x%02x\n", fi->CRC32);
+	printf("Header size: 0x%02x\n", fi->FileInfoSize);
+	
+	if (fi->FileInfoSize != ExpectedHeaderSize)
+	{
+		printf("!! Header size is not %u, strange gr2 !!\n", ExpectedHeaderSize);
+	}
+	
+	printf("Sector total numbers: 0x%02x\n", fi->SectorCount);
 
-	crc = *(uint32_t*)(fileData + p);
-	p += 4;
+	printf("Reference 1:\n");
+	printf("\tSector: %u\n", fi->Ref1.SectorNumber);
+	printf("\tPosition: %u\n", fi->Ref1.Position);
+
+	printf("Reference 2:\n");
+	printf("\tSector: %u\n", fi->Ref2.SectorNumber);
+	printf("\tPosition: %u\n", fi->Ref2.Position);
 	
-	printf("CRC32 Big endian: 0x%02x\n", crc);
-	
-	headerSize = *(uint32_t*)(fileData + p);
-	
-	printf("Header size: 0x%02x\n", headerSize);
-	
-	if (headerSize != 0x38)
+	printf("Tag: 0x%02x\n", fi->Tag);
+
+	printf("Raw unknown %u bytes begin:\n", ExpectedHeaderSize - 0x28);
+	for (int i = 0; i < (ExpectedHeaderSize - 0x28); i++, p++)
 	{
-		printf("|| Header size is not 0x38, strange gr2 ||\n");
-	}
-	
-	p += 4;
-	
-	printf("Sector number: 0x%02x\n", *(uint32_t*)(fileData + p));
-	p += 4;
-	
-	printf("Unknown? (Should be 0x06): 0x%02x\n", *(uint32_t*)(fileData + p));
-	p += 4;
-	
-	printf("Raw unknown 12 bytes begin:\n");
-	for (int i = 0; i < 12; i++, p++)
-	{
-		printf("0x%02x ", fileData[p]);
-	}
-	
-	printf("\n");
-	
-	printf("Tag: 0x%02x\n", *(uint32_t*)(fileData + p));
-	p += 4;
-	
-	printf("Raw unknown 16 bytes begin:\n");
-	for (int i = 0; i < 16; i++, p++)
-	{
-		printf("0x%02x ", fileData[p]);
+		printf("0x%02x ", fi->unk[p]);
 	}
 
 	printf("\n--- END OF GENERIC INFO ---\n");
-	return p;
+
+	return fi->FileInfoSize;
 }
 
 long Sector0Info(uint8_t* fileData, long p)
 {
-	uint32_t sec0comp;
+	struct t_Sector* sector = (struct t_Sector*)(fileData+p);
+
+	printf("Sector 0 compression type: %x\n", sector->CompressionType);
 	
-	sec0comp = *(uint32_t*)(fileData + p);
-	
-	printf("Sector 0 compression type: %x\n", sec0comp);
-	
-	if (sec0comp != 0x00)
+	if (sector->CompressionType != 0x00)
 	{
 		printf("!! Please not that compressed sector 0 is not supported !!");
 	}
-	
-	p += 4;
-	return p;
+
+	return sizeof(struct t_Sector);
 }
 
 int main(int argc, char* argv[])
@@ -210,7 +212,7 @@ int main(int argc, char* argv[])
 	fclose(gr2File);
 
 	p = ParseHeader(fileData, &isBE);
-	p = ParseGenericInfo(fileData, p, fileSize);
+	p = ParseFileInfo(fileData, p, fileSize);
 	p = Sector0Info(fileData, p);
 	
 	free(fileData);
