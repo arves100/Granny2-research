@@ -1,0 +1,37 @@
+Oodle-1
+Data offset: 1016
+Decompressed Data length: 1718
+Compressed Data length: 3584
+b 4
+c 1092
+d 1092
+f 440
+g 48
+h 1016
+e 0
+
+No compression (prova2)
+Compression type: 0
+Data offset: 2816
+Decompressed Data length: 4600
+Compressed Data length: 4600
+b 4
+c 2740
+d 2740
+f 440
+g 198
+h 2816
+e 0
+
+No compression (prova1)
+Compression type: 0
+Data offset: 1676
+Decompressed Data length: 3108
+Compressed Data length: 3108
+b 4
+c 1276
+d 1276
+f 440
+g 103
+h 1676
+e 0
