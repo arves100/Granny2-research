@@ -1,4 +1,6 @@
 # RAD Granny2 decoding
+Repo deprecated! See [opengr2](https://github.com/arves100/opengr2)
+
 Attempts at decoding the Granny2 file format.
 
 A documentation of what is known about the format can be shown [in this wiki page](https://github.com/arves100/gr2decode/wiki/File-Format-Documentation).
